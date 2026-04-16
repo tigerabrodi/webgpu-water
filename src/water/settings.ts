@@ -1,4 +1,9 @@
 export interface WaterSettings {
+  causticsIntensity: number
+  causticsOffset: number
+  causticsScale: number
+  causticsSpeed: number
+  causticsThickness: number
   foamIntensity: number
   foamSoftness: number
   foamThreshold: number
@@ -24,6 +29,11 @@ export interface WaterSettings {
 }
 
 export const defaultWaterSettings: WaterSettings = {
+  causticsIntensity: 0.42,
+  causticsOffset: 0.78,
+  causticsScale: 8.5,
+  causticsSpeed: 0.82,
+  causticsThickness: 0.16,
   foamIntensity: 0.32,
   foamSoftness: 0.12,
   foamThreshold: 0.86,

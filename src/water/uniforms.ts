@@ -17,6 +17,11 @@ export function createUniforms(
   settings: WaterSettings
 ) {
   return {
+    causticsIntensity: uniform(settings.causticsIntensity),
+    causticsOffset: uniform(settings.causticsOffset),
+    causticsScale: uniform(settings.causticsScale),
+    causticsSpeed: uniform(settings.causticsSpeed),
+    causticsThickness: uniform(settings.causticsThickness),
     foamIntensity: uniform(settings.foamIntensity),
     foamSoftness: uniform(settings.foamSoftness),
     time: uniform(0.0),
@@ -52,6 +57,11 @@ export function updateUniformsFromSettings(
   uniforms: WaterUniforms,
   settings: WaterSettings
 ): void {
+  uniforms.causticsIntensity.value = settings.causticsIntensity
+  uniforms.causticsOffset.value = settings.causticsOffset
+  uniforms.causticsScale.value = settings.causticsScale
+  uniforms.causticsSpeed.value = settings.causticsSpeed
+  uniforms.causticsThickness.value = settings.causticsThickness
   uniforms.foamIntensity.value = settings.foamIntensity
   uniforms.foamSoftness.value = settings.foamSoftness
   uniforms.fresnelPower.value = settings.fresnelPower

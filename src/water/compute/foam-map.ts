@@ -11,6 +11,7 @@ import {
   float,
   globalId,
   length,
+  max,
   smoothstep,
   texture,
   textureStore,
@@ -71,6 +72,7 @@ export class FoamMapCompute {
         float(coords.x).add(0.5).div(resolution),
         float(coords.y).add(0.5).div(resolution)
       ).toVar()
+      const center = texture(this._displacementTexture, uv).xyz.toVar()
       const east = texture(
         this._displacementTexture,
         uv.add(vec2(texelUv, 0.0))
@@ -95,6 +97,20 @@ export class FoamMapCompute {
       const slope = length(
         vec2(east.y.sub(west.y), north.y.sub(south.y)).mul(inverseStep)
       ).toVar()
+      const crest = smoothstep(
+        this._uniforms.waveAmplitude.mul(0.18),
+        this._uniforms.waveAmplitude.mul(1.08).add(0.002),
+        center.y
+      ).toVar()
+      const curvature = east.y
+        .add(west.y)
+        .add(north.y)
+        .add(south.y)
+        .sub(center.y.mul(4.0))
+        .abs()
+        .mul(inverseStep)
+        .toVar()
+      const curvatureMask = smoothstep(0.015, 0.14, curvature).toVar()
       const jacobian = float(1)
         .add(dDxDx)
         .mul(float(1).add(dDzDz))
@@ -107,9 +123,15 @@ export class FoamMapCompute {
         0.0,
         1.0
       ).toVar()
-      const slopeMask = smoothstep(0.1, 1.0, slope).toVar()
-      const foam = compression
-        .mul(slopeMask)
+      const slopeMask = smoothstep(0.04, 0.45, slope).toVar()
+      const compressionFoam = compression
+        .mul(float(0.46).add(slopeMask.mul(0.54)))
+        .toVar()
+      const crestFoam = crest
+        .mul(curvatureMask)
+        .mul(float(0.26).add(slopeMask.mul(0.42)))
+        .toVar()
+      const foam = max(compressionFoam, crestFoam)
         .mul(this._uniforms.foamIntensity)
         .toVar()
 

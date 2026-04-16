@@ -1,21 +1,19 @@
-import {
-  WATER_BASIN_RADIUS,
-  WATER_SURFACE_SEGMENTS,
-  WATER_WORLD_SIZE,
-} from '@/water/constants'
+import { WATER_SURFACE_SEGMENTS, WATER_WORLD_SIZE } from '@/water/constants'
 import { createSkyColorNode } from '@/water/sky'
 import type { WaterUniforms } from '@/water/uniforms'
 import * as THREE from 'three/webgpu'
 import {
+  cameraProjectionMatrixInverse,
   clamp,
   cameraPosition,
   dot,
   float,
-  length,
+  getViewPosition,
   max,
   mix,
   normalize,
   positionLocal,
+  positionView,
   positionWorld,
   pow,
   reflect,
@@ -25,6 +23,7 @@ import {
   uv,
   vec2,
   vec3,
+  viewportDepthTexture,
   viewportSafeUV,
   viewportSharedTexture,
 } from 'three/tsl'
@@ -129,57 +128,66 @@ export function createWaterSurfaceMesh(
   const refractedUv = viewportSafeUV(screenUV.add(refractionOffset))
   const refractionSample = viewportSharedTexture(refractedUv).toVar()
   const refractionColor = refractionSample.rgb.toVar()
+  const screenDepth = viewportDepthTexture(screenUV).r.toVar()
+  const screenSceneViewPosition = getViewPosition(
+    screenUV,
+    screenDepth,
+    cameraProjectionMatrixInverse
+  ).toVar()
   const viewDirection = normalize(cameraPosition.sub(positionWorld)).toVar()
   const nDotV = max(dot(viewDirection, surfaceNormal), 0.0).toVar()
-  const basinWarp = worldXZ.x
-    .mul(0.78)
-    .add(0.6)
-    .sin()
-    .mul(0.08)
-    .add(worldXZ.y.mul(0.64).sub(0.4).cos().mul(0.06))
-    .add(worldXZ.x.sub(worldXZ.y).mul(0.32).sin().mul(0.05))
+  const fresnelTerm = uniforms.fresnelScale
+    .mul(pow(float(1.0).sub(nDotV), uniforms.fresnelPower))
     .toVar()
-  const radialDistance = length(vec2(worldXZ.x.mul(0.93), worldXZ.y.mul(1.07)))
-    .div(WATER_BASIN_RADIUS)
-    .add(basinWarp)
+  const reflectionMix = clamp(
+    fresnelTerm.mul(uniforms.reflectionStrength.mul(1.16).add(0.06)),
+    0.0,
+    1.0
+  ).toVar()
+  const waterThickness = clamp(
+    positionView.z.sub(screenSceneViewPosition.z),
+    0.0,
+    4.0
+  ).toVar()
+  const shallowFactor = float(1.0)
+    .sub(smoothstep(0.06, 0.4, waterThickness))
     .toVar()
-  const basinSlopeFactor = float(1.0)
-    .sub(smoothstep(0.22, 1.0, radialDistance))
-    .toVar()
-  const basinCoreFactor = float(1.0)
-    .sub(smoothstep(0.0, 0.58, radialDistance))
-    .toVar()
+  const deepFactor = smoothstep(0.22, 1.65, waterThickness).toVar()
   const opticalDepth = uniforms.waterDepth
-    .mul(0.96)
-    .add(basinSlopeFactor.mul(0.18))
-    .add(basinCoreFactor.mul(0.26))
-    .add(0.12)
+    .mul(waterThickness.mul(2.05).add(0.12))
+    .add(0.03)
     .toVar()
-  const surfaceDensity = uniforms.waterOpacity
-    .mul(0.82)
-    .add(opticalDepth.mul(0.64))
-    .add(0.1)
+  const grazingFactor = pow(float(1.0).sub(nDotV), 1.45).toVar()
+  const reflectionOcclusion = float(1.0)
+    .sub(clamp(reflectionMix.mul(0.72), 0.0, 0.92))
     .toVar()
-  const refractionVisibility = pow(nDotV, 3.6)
-    .mul(uniforms.waterClarity)
-    .mul(float(1.0).sub(surfaceDensity.mul(0.58)))
-    .mul(
-      float(1.0).sub(basinSlopeFactor.mul(0.4).add(basinCoreFactor.mul(0.3)))
-    )
+  const surfaceDensity = clamp(
+    uniforms.waterOpacity
+      .mul(0.34)
+      .add(opticalDepth.mul(0.86))
+      .add(deepFactor.mul(0.18))
+      .add(grazingFactor.mul(0.12))
+      .sub(shallowFactor.mul(0.18))
+      .add(0.18),
+    0.24,
+    1.0
+  ).toVar()
+  const refractionVisibility = uniforms.waterClarity
+    .mul(pow(nDotV, 1.35).mul(0.65).add(0.35))
+    .mul(shallowFactor.mul(0.98).add(0.22))
+    .mul(reflectionOcclusion)
+    .mul(1.02)
     .toVar()
   const surfaceOpacity = clamp(
-    clamp(
-      uniforms.waterOpacity
-        .mul(0.58)
-        .add(0.4)
-        .add(pow(float(1.0).sub(nDotV), 1.65).mul(0.18))
-        .sub(refractionVisibility.mul(0.12)),
-      0.62,
-      1.0
-    )
-      .add(basinSlopeFactor.mul(0.04))
-      .add(basinCoreFactor.mul(0.06)),
-    0.62,
+    uniforms.waterOpacity
+      .mul(0.4)
+      .add(opticalDepth.mul(0.16))
+      .add(grazingFactor.mul(0.22))
+      .add(deepFactor.mul(0.08))
+      .add(0.26)
+      .sub(shallowFactor.mul(0.18))
+      .sub(refractionVisibility.mul(0.08)),
+    0.42,
     1.0
   ).toVar()
 
@@ -244,9 +252,6 @@ export function createWaterSurfaceMesh(
       .mul(1.18)
       .toVar()
     const sunSpecular = broadSunSpecular.add(tightSunSpecular).toVar()
-    const fresnelTerm = uniforms.fresnelScale
-      .mul(pow(float(1.0).sub(nDotV), uniforms.fresnelPower))
-      .toVar()
     const rimWarmth = pow(float(1.0).sub(nDotV), 5.5)
       .mul(COPPER_RIM)
       .mul(0.22)
@@ -258,11 +263,11 @@ export function createWaterSurfaceMesh(
     ).toVar()
     const backScatter = pow(
       max(dot(viewDirection, uniforms.sunDirection.negate()), 0.0),
-      3.5
+      2.35
     ).toVar()
     const sss = SSS_TINT.mul(crestMask)
-      .mul(backScatter)
-      .mul(uniforms.sssIntensity)
+      .mul(backScatter.mul(0.74).add(0.26))
+      .mul(uniforms.sssIntensity.mul(1.18))
       .toVar()
     const foamBreakup = ripplePhaseA
       .sin()
@@ -272,25 +277,39 @@ export function createWaterSurfaceMesh(
       .mul(0.5)
       .add(0.5)
       .toVar()
+    const shallowRefraction = refractionColor
+      .mul(SURFACE_COLOR.mul(0.18).add(0.92))
+      .add(PEAK_COLOR.mul(shallowFactor.mul(0.04)))
+      .toVar()
+    const deepRefraction = refractionColor
+      .mul(ABSORPTION_TINT.mul(opticalDepth.mul(1.08).add(0.46)))
+      .add(TROUGH_COLOR.mul(0.52))
+      .add(SURFACE_COLOR.mul(0.14))
+      .toVar()
     const absorbedRefraction = mix(
-      refractionColor
-        .mul(ABSORPTION_TINT.mul(surfaceDensity.mul(0.82).add(0.18)))
-        .add(TROUGH_COLOR.mul(0.28)),
-      TROUGH_COLOR.mul(1.06)
-        .add(SURFACE_COLOR.mul(0.22))
-        .add(ABSORPTION_TINT.mul(0.08)),
-      basinSlopeFactor.mul(0.58).add(basinCoreFactor.mul(0.38))
+      shallowRefraction,
+      deepRefraction,
+      clamp(opticalDepth.mul(0.58).add(deepFactor.mul(0.28)), 0.0, 1.0)
+    ).toVar()
+    const transmissionBase = mix(
+      mix(TROUGH_COLOR, baseColor, nDotV.mul(0.48).add(0.14)),
+      shallowRefraction,
+      clamp(
+        refractionVisibility.mul(1.12).add(shallowFactor.mul(0.18)),
+        0.0,
+        1.0
+      )
     ).toVar()
     const transmissionColor = mix(
-      mix(TROUGH_COLOR, baseColor, nDotV.mul(0.38).add(0.12)),
+      transmissionBase,
       absorbedRefraction,
-      refractionVisibility.mul(0.82)
+      clamp(deepFactor.mul(0.64).add(opticalDepth.mul(0.34)), 0.0, 1.0)
     ).toVar()
     const foamCoverage = foamAmount
-      .mul(crestMask.mul(0.88).add(0.12))
+      .mul(crestMask.mul(0.82).add(0.18))
       .mul(foamBreakup.mul(0.58).add(0.42))
       .toVar()
-    const foamMask = smoothstep(0.14, 0.56, foamCoverage).toVar()
+    const foamMask = smoothstep(0.08, 0.34, foamCoverage).toVar()
     const foamColor = mix(PEAK_COLOR, FOAM_TINT, 0.68)
       .add(COPPER_RIM.mul(0.06))
       .toVar()
@@ -303,12 +322,12 @@ export function createWaterSurfaceMesh(
       .toVar()
     const reflectedWater = mix(
       transmissionColor
-        .mul(surfaceDensity.mul(0.18).add(0.78))
-        .add(shadedWater.mul(0.42)),
+        .mul(surfaceDensity.mul(0.16).add(0.76))
+        .add(shadedWater.mul(0.46)),
       reflectionColor
-        .mul(uniforms.reflectionStrength.mul(0.82).add(0.18))
+        .mul(uniforms.reflectionStrength.mul(0.92).add(0.1))
         .add(sunSpecular),
-      clamp(fresnelTerm, 0.0, 1.0)
+      clamp(reflectionMix.mul(0.92).add(deepFactor.mul(0.06)), 0.0, 1.0)
     ).toVar()
 
     return mix(reflectedWater, foamColor, foamMask)

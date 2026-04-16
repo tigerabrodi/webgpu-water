@@ -461,13 +461,19 @@ export function computeFoamIntensity(
   jacobian: number,
   slope: number,
   threshold: number,
-  softness: number
+  softness: number,
+  crest = 0,
+  curvature = 0
 ): number {
   const safeSoftness = Math.max(softness, 1e-5)
   const compression = clamp01((threshold - jacobian) / safeSoftness)
-  const slopeWeight = smoothstep(0.1, 1.0, slope)
+  const slopeWeight = smoothstep(0.04, 0.45, slope)
+  const crestWeight = smoothstep(0.18, 0.82, crest)
+  const curvatureWeight = smoothstep(0.015, 0.14, curvature)
+  const compressionFoam = compression * (0.46 + slopeWeight * 0.54)
+  const crestFoam = crestWeight * curvatureWeight * (0.26 + slopeWeight * 0.42)
 
-  return clamp01(compression * slopeWeight)
+  return clamp01(Math.max(compressionFoam, crestFoam))
 }
 
 export function fresnel(

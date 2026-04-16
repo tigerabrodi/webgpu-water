@@ -204,23 +204,23 @@ export class WaterRenderer {
     this.cameraView = view
 
     if (view === 'glide') {
-      this.camera.position.set(1.18, 0.14, -0.06)
-      this.camera.lookAt(0.02, -0.02, 0.18)
-      this.controls?.target.set(0.02, -0.02, 0.18)
+      this.camera.position.set(0.92, 0.08, -0.28)
+      this.camera.lookAt(0.02, 0.01, 0.74)
+      this.controls?.target.set(0.02, 0.01, 0.74)
       return
     }
 
     if (view === 'storm') {
-      this.camera.position.set(1.56, 0.28, 0.58)
-      this.camera.lookAt(0.08, -0.01, 0.14)
-      this.controls?.target.set(0.08, -0.01, 0.14)
+      this.camera.position.set(1.28, 0.18, -0.24)
+      this.camera.lookAt(0.14, -0.03, 0.66)
+      this.controls?.target.set(0.14, -0.03, 0.66)
       return
     }
 
     if (view === 'shelf') {
-      this.camera.position.set(1.06, 0.16, 1.16)
-      this.camera.lookAt(0, -0.11, 0.16)
-      this.controls?.target.set(0, -0.11, 0.16)
+      this.camera.position.set(0.74, 0.56, 0.92)
+      this.camera.lookAt(-0.02, -0.24, 0.08)
+      this.controls?.target.set(-0.02, -0.24, 0.08)
       return
     }
 

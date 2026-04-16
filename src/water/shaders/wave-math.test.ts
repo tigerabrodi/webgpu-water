@@ -318,4 +318,26 @@ describe('computeFoamIntensity', () => {
     expect(strong).toBeGreaterThan(soft)
     expect(strong).toBeGreaterThan(0.4)
   })
+
+  it('can build foam from strong cresting even when compression is mild', () => {
+    const calmCrest = computeFoamIntensity(0.78, 0.28, 0.65, 0.2, 0.18, 0.02)
+    const breakingCrest = computeFoamIntensity(
+      0.78,
+      0.28,
+      0.65,
+      0.2,
+      0.92,
+      0.16
+    )
+
+    expect(breakingCrest).toBeGreaterThan(calmCrest)
+    expect(breakingCrest).toBeGreaterThan(0.15)
+  })
+
+  it('still responds to the foam threshold through the compression term', () => {
+    const lowThreshold = computeFoamIntensity(0.58, 0.52, 0.52, 0.2, 0.5, 0.08)
+    const highThreshold = computeFoamIntensity(0.58, 0.52, 0.82, 0.2, 0.5, 0.08)
+
+    expect(highThreshold).toBeGreaterThan(lowThreshold)
+  })
 })

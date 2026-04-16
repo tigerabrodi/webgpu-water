@@ -71,6 +71,13 @@ input {
   margin-bottom: 1rem;
 }
 
+.control-panel__intro-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
 .control-panel__eyebrow {
   margin: 0 0 0.35rem;
   color: var(--copper);
@@ -144,6 +151,45 @@ input {
 }
 
 .control-chip:hover {
+  transform: translateY(-1px);
+  border-color: rgba(242, 200, 157, 0.36);
+}
+
+.control-chip--active {
+  border-color: rgba(242, 200, 157, 0.42);
+  background: linear-gradient(
+    180deg,
+    rgba(220, 157, 99, 0.24),
+    rgba(220, 157, 99, 0.11)
+  );
+}
+
+.control-chip--compact {
+  flex: none;
+  white-space: nowrap;
+}
+
+.panel-toggle {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 3;
+  padding: 0.65rem 0.95rem;
+  border: 1px solid rgba(242, 200, 157, 0.22);
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(242, 200, 157, 0.12), transparent 80%),
+    rgba(8, 17, 28, 0.72);
+  color: var(--ink);
+  cursor: pointer;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 0.8rem 2.4rem rgba(0, 0, 0, 0.28);
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease;
+}
+
+.panel-toggle:hover {
   transform: translateY(-1px);
   border-color: rgba(242, 200, 157, 0.36);
 }

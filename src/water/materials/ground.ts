@@ -1,9 +1,11 @@
-import { WATER_BASIN_RADIUS, WATER_FLOOR_SIZE } from '@/water/constants'
+import { WATER_FLOOR_SIZE } from '@/water/constants'
+import { computeGroundHeight } from '@/water/shaders/basin-profile'
 import type { WaterUniforms } from '@/water/uniforms'
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js'
 import * as THREE from 'three/webgpu'
 import {
   abs,
+  float,
   mix,
   normalMap,
   positionWorld,
@@ -91,23 +93,7 @@ export function createGroundMesh(
   for (let index = 0; index < positions.count; index++) {
     const x = positions.getX(index)
     const z = positions.getZ(index)
-    const basinWarp =
-      Math.sin(x * 0.78 + 0.6) * 0.08 +
-      Math.cos(z * 0.64 - 0.4) * 0.06 +
-      Math.sin((x - z) * 0.32) * 0.05
-    const radius =
-      Math.hypot(x * 0.93, z * 1.07) / WATER_BASIN_RADIUS + basinWarp
-    const basinSlope = 1 - THREE.MathUtils.smoothstep(radius, 0.22, 1.0)
-    const basinCore = 1 - THREE.MathUtils.smoothstep(radius, 0.0, 0.58)
-    const innerRipple =
-      Math.sin(x * 2.8) * Math.cos(z * 2.4) * basinSlope * 0.016
-    const outerVariation =
-      Math.sin(x * 0.84 + 0.8) * Math.cos(z * 0.96 - 0.5) * 0.024
-
-    positions.setY(
-      index,
-      -0.24 - basinSlope * 0.2 - basinCore * 0.26 + innerRipple + outerVariation
-    )
+    positions.setY(index, computeGroundHeight(x, z))
   }
 
   positions.needsUpdate = true
@@ -157,43 +143,50 @@ export function createGroundMesh(
     )
       .oneMinus()
       .toVar()
-    const causticsA = pow(
-      smoothstep(
-        0.52,
-        0.9,
-        abs(
-          texture(
-            textures.height,
-            textureUv.add(
-              vec2(uniforms.time.mul(0.06), uniforms.time.mul(0.02))
+    const causticsUv = vec2(positionWorld.x, positionWorld.z)
+      .mul(uniforms.causticsScale.mul(0.1))
+      .toVar()
+    const sampleA = abs(
+      texture(
+        textures.height,
+        causticsUv.add(
+          vec2(
+            uniforms.time.mul(uniforms.causticsSpeed.mul(0.06)),
+            uniforms.time.mul(uniforms.causticsSpeed.mul(0.02))
+          )
+        )
+      )
+        .r.mul(2.0)
+        .sub(1.0)
+    ).toVar()
+    const sampleB = abs(
+      texture(
+        textures.height,
+        vec2(causticsUv.y, causticsUv.x)
+          .mul(1.45)
+          .add(
+            vec2(
+              uniforms.time.mul(uniforms.causticsSpeed.mul(-0.045)),
+              uniforms.time.mul(uniforms.causticsSpeed.mul(0.035))
             )
           )
-            .r.mul(2.0)
-            .sub(1.0)
-        ).oneMinus()
-      ),
-      2.2
+      )
+        .r.mul(2.0)
+        .sub(1.0)
     ).toVar()
-    const causticsB = pow(
-      smoothstep(
-        0.48,
-        0.84,
-        abs(
-          texture(
-            textures.height,
-            vec2(textureUv.y, textureUv.x)
-              .mul(1.45)
-              .add(vec2(uniforms.time.mul(-0.045), uniforms.time.mul(0.035)))
-          )
-            .r.mul(2.0)
-            .sub(1.0)
-        ).oneMinus()
-      ),
-      2.0
-    ).toVar()
-    const caustics = causticsA.add(causticsB).mul(shallowMask).mul(0.38).toVar()
+    const causticsRaw = uniforms.causticsIntensity
+      .mul(uniforms.causticsOffset.sub(sampleA))
+      .add(uniforms.causticsIntensity.mul(uniforms.causticsOffset.sub(sampleB)))
+      .toVar()
+    const caustics = smoothstep(
+      float(0.5).sub(uniforms.causticsThickness),
+      float(0.5).add(uniforms.causticsThickness),
+      causticsRaw
+    )
+      .mul(shallowMask)
+      .toVar()
 
-    return CAUSTICS_TINT.mul(caustics)
+    return CAUSTICS_TINT.mul(pow(caustics, 1.7))
   })()
   material.clearcoat = 0.12
   material.clearcoatRoughness = 0.56

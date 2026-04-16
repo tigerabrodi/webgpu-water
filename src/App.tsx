@@ -101,6 +101,46 @@ const CONTROL_GROUPS: Array<{
     ],
   },
   {
+    title: 'Ground caustics',
+    controls: [
+      {
+        key: 'causticsIntensity',
+        label: 'Caustics intensity',
+        min: 0,
+        max: 1.6,
+        step: 0.01,
+      },
+      {
+        key: 'causticsScale',
+        label: 'Caustics scale',
+        min: 2,
+        max: 24,
+        step: 0.1,
+      },
+      {
+        key: 'causticsSpeed',
+        label: 'Caustics speed',
+        min: 0,
+        max: 2,
+        step: 0.01,
+      },
+      {
+        key: 'causticsOffset',
+        label: 'Caustics offset',
+        min: 0.35,
+        max: 1.1,
+        step: 0.01,
+      },
+      {
+        key: 'causticsThickness',
+        label: 'Caustics thickness',
+        min: 0.04,
+        max: 0.34,
+        step: 0.01,
+      },
+    ],
+  },
+  {
     title: 'Foam and light',
     controls: [
       {
@@ -196,6 +236,35 @@ const PRESETS: Array<{
     view: 'horizon',
   },
   {
+    name: 'Tiger tuned',
+    settings: {
+      ...defaultWaterSettings,
+      foamIntensity: 0.32,
+      foamSoftness: 0.12,
+      foamThreshold: 0.86,
+      fresnelPower: 4.4,
+      fresnelScale: 0.76,
+      peakThreshold: 0.08,
+      peakTransition: 0.173,
+      reflectionStrength: 0.99,
+      sssIntensity: 1.15,
+      sunAzimuth: -0.16,
+      sunElevation: 0.28,
+      troughThreshold: -0.09,
+      troughTransition: 0.182,
+      waterClarity: 0.23,
+      waterDepth: 0.24,
+      waterOpacity: 0.71,
+      waveAmplitude: 0.021,
+      waveChoppiness: 0.072,
+      waveFrequency: 2.11,
+      waveLacunarity: 2.72,
+      wavePersistence: 0.28,
+      waveSpeed: 0.25,
+    },
+    view: 'horizon',
+  },
+  {
     name: 'Mirror glass',
     settings: {
       ...defaultWaterSettings,
@@ -216,6 +285,10 @@ const PRESETS: Array<{
     name: 'Caustic shelf',
     settings: {
       ...defaultWaterSettings,
+      causticsIntensity: 0.76,
+      causticsScale: 9.8,
+      causticsSpeed: 1.04,
+      causticsThickness: 0.14,
       foamIntensity: 0.3,
       fresnelScale: 0.88,
       reflectionStrength: 0.82,
@@ -274,6 +347,7 @@ export function App() {
     'idle'
   )
   const [isGroundVisible, setIsGroundVisible] = useState(true)
+  const [isPanelVisible, setIsPanelVisible] = useState(true)
   const [isWaterVisible, setIsWaterVisible] = useState(true)
 
   useEffect(() => {
@@ -347,127 +421,144 @@ export function App() {
     <div className="app-shell">
       <div ref={containerRef} className="scene-view" />
 
-      <aside className="control-panel">
-        <div className="control-panel__intro">
-          <p className="control-panel__eyebrow">WebGPU fjord water</p>
-          <h1>Shape the water until it feels right.</h1>
-          <p className="control-panel__copy">
-            The scene updates live. Push the motion. Pull the light. Find the
-            mood you want.
-          </p>
-        </div>
+      {!isPanelVisible ? (
+        <button
+          type="button"
+          className="panel-toggle"
+          onClick={() => setIsPanelVisible(true)}
+        >
+          Show controls
+        </button>
+      ) : (
+        <aside className="control-panel">
+          <div className="control-panel__intro">
+            <div className="control-panel__intro-top">
+              <p className="control-panel__eyebrow">WebGPU fjord water</p>
+              <button
+                type="button"
+                className="control-chip control-chip--compact"
+                onClick={() => setIsPanelVisible(false)}
+              >
+                Hide controls
+              </button>
+            </div>
+            <h1>Shape the water until it feels right.</h1>
+            <p className="control-panel__copy">
+              The scene updates live. Push the motion. Pull the light. Find the
+              mood you want.
+            </p>
+          </div>
 
-        <div className="control-panel__actions">
-          <button
-            type="button"
-            className="control-button"
-            onClick={() => {
-              setSettings({ ...defaultWaterSettings })
-              setIsGroundVisible(true)
-              setIsWaterVisible(true)
-              rendererRef.current?.setGroundVisible(true)
-              rendererRef.current?.setWaterVisible(true)
-              rendererRef.current?.setView('horizon')
-            }}
-          >
-            Reset water
-          </button>
-          <button
-            type="button"
-            className="control-button control-button--ghost"
-            onClick={() => rendererRef.current?.resetCamera()}
-          >
-            Center camera
-          </button>
-        </div>
-
-        <div className="control-panel__actions">
-          <button
-            type="button"
-            className="control-button control-button--ghost"
-            onClick={handleCopySettings}
-          >
-            {copyButtonLabel}
-          </button>
-        </div>
-
-        <div className="control-presets">
-          <button
-            type="button"
-            className="control-chip"
-            onClick={() => {
-              const isNextVisible = !isWaterVisible
-              setIsWaterVisible(isNextVisible)
-              rendererRef.current?.setWaterVisible(isNextVisible)
-            }}
-          >
-            {isWaterVisible ? 'Hide water' : 'Show water'}
-          </button>
-          <button
-            type="button"
-            className="control-chip"
-            onClick={() => {
-              const isNextVisible = !isGroundVisible
-              setIsGroundVisible(isNextVisible)
-              rendererRef.current?.setGroundVisible(isNextVisible)
-            }}
-          >
-            {isGroundVisible ? 'Hide ground' : 'Show ground'}
-          </button>
-        </div>
-
-        <div className="control-presets">
-          {CAMERA_VIEWS.map((view) => (
+          <div className="control-panel__actions">
             <button
-              key={view.id}
               type="button"
-              className="control-chip"
-              onClick={() => rendererRef.current?.setView(view.id)}
+              className="control-button"
+              onClick={() => {
+                setSettings({ ...defaultWaterSettings })
+                setIsGroundVisible(true)
+                setIsWaterVisible(true)
+                rendererRef.current?.setGroundVisible(true)
+                rendererRef.current?.setWaterVisible(true)
+              }}
             >
-              {view.label}
+              Reset water
             </button>
-          ))}
-        </div>
-
-        <div className="control-presets">
-          {PRESETS.map((preset) => (
             <button
-              key={preset.name}
+              type="button"
+              className="control-button control-button--ghost"
+              onClick={() => rendererRef.current?.resetCamera()}
+            >
+              Center camera
+            </button>
+          </div>
+
+          <div className="control-panel__actions">
+            <button
+              type="button"
+              className="control-button control-button--ghost"
+              onClick={handleCopySettings}
+            >
+              {copyButtonLabel}
+            </button>
+          </div>
+
+          <div className="control-presets">
+            <button
               type="button"
               className="control-chip"
               onClick={() => {
-                setSettings({ ...preset.settings })
-                rendererRef.current?.setView(preset.view ?? 'horizon')
+                const isNextVisible = !isWaterVisible
+                setIsWaterVisible(isNextVisible)
+                rendererRef.current?.setWaterVisible(isNextVisible)
               }}
             >
-              {preset.name}
+              {isWaterVisible ? 'Hide water' : 'Show water'}
             </button>
-          ))}
-        </div>
+            <button
+              type="button"
+              className="control-chip"
+              onClick={() => {
+                const isNextVisible = !isGroundVisible
+                setIsGroundVisible(isNextVisible)
+                rendererRef.current?.setGroundVisible(isNextVisible)
+              }}
+            >
+              {isGroundVisible ? 'Hide ground' : 'Show ground'}
+            </button>
+          </div>
 
-        {CONTROL_GROUPS.map((group) => (
-          <section key={group.title} className="control-group">
-            <h2>{group.title}</h2>
-
-            {group.controls.map((control) => (
-              <label key={control.key} className="control-row">
-                <span className="control-row__top">
-                  <span>{control.label}</span>
-                  <span>{formatValue(settings[control.key])}</span>
-                </span>
-                <input
-                  type="range"
-                  min={control.min}
-                  max={control.max}
-                  step={control.step}
-                  value={settings[control.key]}
-                  onChange={handleSliderChange(control.key)}
-                />
-              </label>
+          <div className="control-presets">
+            {CAMERA_VIEWS.map((view) => (
+              <button
+                key={view.id}
+                type="button"
+                className="control-chip"
+                onClick={() => rendererRef.current?.setView(view.id)}
+              >
+                {view.label}
+              </button>
             ))}
-          </section>
-        ))}
-      </aside>
+          </div>
+
+          <div className="control-presets">
+            {PRESETS.map((preset) => (
+              <button
+                key={preset.name}
+                type="button"
+                className="control-chip"
+                onClick={() => {
+                  setSettings({ ...preset.settings })
+                }}
+              >
+                {preset.name}
+              </button>
+            ))}
+          </div>
+
+          {CONTROL_GROUPS.map((group) => (
+            <section key={group.title} className="control-group">
+              <h2>{group.title}</h2>
+
+              {group.controls.map((control) => (
+                <label key={control.key} className="control-row">
+                  <span className="control-row__top">
+                    <span>{control.label}</span>
+                    <span>{formatValue(settings[control.key])}</span>
+                  </span>
+                  <input
+                    type="range"
+                    min={control.min}
+                    max={control.max}
+                    step={control.step}
+                    value={settings[control.key]}
+                    onChange={handleSliderChange(control.key)}
+                  />
+                </label>
+              ))}
+            </section>
+          ))}
+        </aside>
+      )}
     </div>
   )
 }
