@@ -1,0 +1,6 @@
+export const WATER_WORLD_SIZE = 24.0
+export const WATER_SURFACE_SEGMENTS = 512
+export const WATER_FLOOR_SIZE = 24.0
+export const WATER_BASIN_RADIUS = 8.8
+export const WAVE_TEXTURE_RESOLUTION = 512
+export const COMPUTE_WORKGROUP_SIZE = 8

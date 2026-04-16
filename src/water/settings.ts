@@ -1,0 +1,49 @@
+export interface WaterSettings {
+  foamIntensity: number
+  foamSoftness: number
+  foamThreshold: number
+  fresnelPower: number
+  fresnelScale: number
+  peakThreshold: number
+  peakTransition: number
+  reflectionStrength: number
+  sssIntensity: number
+  sunAzimuth: number
+  sunElevation: number
+  troughThreshold: number
+  troughTransition: number
+  waterClarity: number
+  waterDepth: number
+  waterOpacity: number
+  waveAmplitude: number
+  waveChoppiness: number
+  waveFrequency: number
+  waveLacunarity: number
+  wavePersistence: number
+  waveSpeed: number
+}
+
+export const defaultWaterSettings: WaterSettings = {
+  foamIntensity: 0.32,
+  foamSoftness: 0.12,
+  foamThreshold: 0.86,
+  fresnelPower: 5.2,
+  fresnelScale: 0.86,
+  peakThreshold: 0.028,
+  peakTransition: 0.11,
+  reflectionStrength: 0.84,
+  sssIntensity: 0.46,
+  sunAzimuth: -0.58,
+  sunElevation: 0.18,
+  troughThreshold: -0.024,
+  troughTransition: 0.17,
+  waterClarity: 0.18,
+  waterDepth: 0.24,
+  waterOpacity: 0.9,
+  waveAmplitude: 0.048,
+  waveChoppiness: 0.072,
+  waveFrequency: 1.22,
+  waveLacunarity: 1.94,
+  wavePersistence: 0.36,
+  waveSpeed: 0.12,
+}
