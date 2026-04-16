@@ -99,7 +99,3 @@ import { WaterRenderer } from '@/water/renderer'
 All patina ground textures are KTX2 with UASTC encoding + Zstandard compression. Load with Three.js KTX2Loader. These are GPU-compressed: no CPU-side PNG decode, the GPU reads them directly.
 
 Basecolor and diffuse are sRGB. Normal, roughness, metalness, height are linear.
-
-## Reference
-
-The original WebGL water shader lives at `/Users/tigerabrodi/Desktop/water-from-course`. Read those shaders when porting wave logic and caustics.

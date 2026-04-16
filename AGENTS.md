@@ -4,8 +4,6 @@
 
 A WebGPU water renderer using Three.js TSL. Nordic fjord at sunset. Dark moody water with copper/gold specular, patina copper ground, procedural sky.
 
-Rebuilt from a reference WebGL implementation at `/Users/tigerabrodi/Desktop/water-from-course`.
-
 Read `plan.md` for the full architecture and implementation plan.
 Read `development.md` for project structure and code style.
 
@@ -49,12 +47,3 @@ Reference the clouds project compute passes for working examples of:
 - `computeKernel` and `setCount` for workgroup dispatch
 - `globalId` for thread indexing
 - `mx_fractal_noise_float` and `mx_worley_noise_float` for built-in TSL noise
-
-## Reference
-
-The original GLSL shaders at `/Users/tigerabrodi/Desktop/water-from-course/src/shaders/` are the ground truth for wave math and caustics. When porting a function, read the GLSL first, understand it, then write the TSL/WGSL equivalent.
-
-Key reference files:
-- `water.vert`: FBM simplex noise displacement, finite difference normals
-- `water.frag`: Elevation color, fresnel, cube map reflections
-- `caustics.frag`: Two-layer 3D simplex noise caustics

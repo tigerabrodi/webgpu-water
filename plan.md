@@ -1,17 +1,8 @@
 # WebGPU Water: Implementation Plan
 
-## Reference Implementation
+## Current Direction
 
-The reference water shader lives at `/Users/tigerabrodi/Desktop/water-from-course`. It is a WebGL Three.js project with raw GLSL shaders. We are rebuilding it with WebGPU compute shaders and TSL, with a different visual direction.
-
-Key files in the reference:
-
-- `src/main.js`: Scene setup, orbit controls, cube map environment, ground + water meshes.
-- `src/objects/Water.js`: 512x512 plane, ShaderMaterial, FBM wave uniforms.
-- `src/objects/Ground.js`: Circle geometry, caustics shader.
-- `src/shaders/water.vert`: FBM simplex noise vertex displacement, 8 octaves, finite difference normals.
-- `src/shaders/water.frag`: Elevation-based color, cube map reflections, fresnel blending.
-- `src/shaders/caustics.frag`: Two layers of 3D simplex noise shaped with smoothstep.
+This project is a WebGPU first fjord water renderer built with Three.js TSL and compute passes. The visual target is dark Nordic water at sunset with strong body motion, readable shallow versus deep transmission, patina ground, and a procedural sky.
 
 ## Visual Direction
 
@@ -40,11 +31,9 @@ Three compute passes per frame, three render passes.
 
 **What**: Generate a 256x256 2D storage texture of wave heights.
 
-**How the reference did it**: FBM simplex noise directly in the vertex shader. Every vertex recalculates 8 octaves every frame. Redundant work for nearby vertices.
-
 **How we do it**: One compute dispatch writes a heightmap texture. The vertex shader just samples it. Cleaner separation. And the compute path scales to FFT later.
 
-**Initial version**: FBM simplex noise in compute. Same math as the reference, just running as a compute dispatch into a storage texture instead of per-vertex.
+**Initial version**: FBM style noise in compute with layered directional swell instead of pushing all wave math through the vertex stage.
 
 **Upgrade path**: Phillips spectrum + inverse FFT via butterfly passes. Physically correct wave shapes with proper energy distribution. FFT is a natural compute workload (log2(N) butterfly passes, each a dispatch).
 
@@ -52,15 +41,11 @@ Three compute passes per frame, three render passes.
 
 **What**: Generate a 256x256 2D normal map from the wave heightmap.
 
-**How the reference did it**: Finite differences in the vertex shader. Sample three nearby points, cross product. An approximation.
-
 **How we do it**: Compute shader reads the heightmap, samples 4 neighbors per texel (+x, -x, +z, -z), computes proper gradients, writes normals to a storage texture. More accurate, computed once per texel instead of per vertex.
 
 ### Compute Pass 3: Foam Map (every frame)
 
 **What**: Generate a 256x256 2D foam intensity map.
-
-**How the reference did it**: Nothing. No foam.
 
 **How we do it**: Compute the Jacobian of the wave displacement. The Jacobian measures how much the horizontal displacement compresses the surface. Where it goes negative, the surface is folding over itself. That is where foam forms. Output a foam intensity texture. The water material blends white foam where this value is high.
 
@@ -76,6 +61,7 @@ Material (TSL MeshPhysicalNodeMaterial):
 - SSS: where wave is thin and sun is behind it, tint emerald/cyan. Simple approximation: `sssIntensity * pow(max(dot(lightDir, -viewDir), 0), sssExponent) * thinnessFactor`.
 - Foam: white overlay where foam map intensity exceeds threshold. Soft blend.
 - Reflections: procedural sky reflection via reflection vector sampling.
+- Transmission: real screen depth behind the water pixel drives shallow versus deep body color.
 
 ### Render: Ground
 
@@ -83,7 +69,7 @@ A circle geometry below the water plane.
 
 Material (TSL MeshStandardNodeMaterial):
 - PBR maps from KTX2 textures: basecolor, normal, roughness, metalness, height
-- Caustics: two layers of scrolling 3D noise, same approach as reference but as TSL nodes
+- Caustics: layered scrolling patterns shaped as TSL nodes
 - Depth fog: `mix(groundColor, waterBodyColor, depthFog(depth, maxDepth))`. Shallow edges show patina clearly. Deep center fades to navy.
 
 KTX2 textures loaded with Three.js KTX2Loader. GPU-compressed (UASTC + Zstandard). No PNG decoding at runtime.
@@ -99,11 +85,11 @@ Rendered as scene background or a large inverted sphere with TSL material.
 
 ## Design Decisions
 
-**Compute for wave generation**: The reference runs wave math per-vertex in the vertex shader. This means every vertex independently computes 8 octaves of noise. With compute, we write a heightmap once and every vertex just reads a texel. Less redundant work. And compute is the only path that supports FFT later.
+**Compute for wave generation**: Running wave math once into a shared texture avoids redundant work across nearby vertices. And compute is the only path that supports FFT later.
 
-**Compute for normals**: Finite differences in the vertex shader are an approximation. The compute pass samples the actual heightmap with proper gradients. More accurate normals mean more accurate lighting and reflections.
+**Compute for normals**: The compute pass samples the actual heightmap with proper gradients. More accurate normals mean more accurate lighting and reflections.
 
-**Compute for foam**: The Jacobian is a property of the displacement field, not a per-vertex thing. Computing it from the heightmap texture is natural. The reference has no foam at all.
+**Compute for foam**: The Jacobian is a property of the displacement field, not a per-vertex thing. Computing it from the heightmap texture is natural.
 
 **KTX2 textures**: GPU-compressed. The browser doesn't decode PNGs on the CPU and re-upload. The GPU reads the compressed data directly. Smaller download, faster load, less memory. We converted all 5 PBR maps (basecolor, normal, roughness, metalness, height) to KTX2 with UASTC encoding.
 
